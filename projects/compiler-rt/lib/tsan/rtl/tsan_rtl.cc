@@ -351,7 +351,7 @@ void Initialize(ThreadState *thr) {
   // Install tool-specific callbacks in sanitizer_common.
   SetCheckFailedCallback(TsanCheckFailed);
 
-  ctx = new(ctx_placeholder) Context;
+  ctx = new(ctx_placeholder) Context;  // todo might need to add stuff in context
   const char *options = GetEnv(SANITIZER_GO ? "GORACE" : "TSAN_OPTIONS");
   CacheBinaryName();
   InitializeFlags(&ctx->flags, options);
@@ -369,12 +369,13 @@ void Initialize(ThreadState *thr) {
   Processor *proc = ProcCreate();
   ProcWire(proc, thr);
   InitializeInterceptors();
-  CheckShadowMapping();
+  CheckShadowMapping();  // todo check if needs to be modified
   InitializePlatform();
-  InitializeMutex();
+  InitializeMutex();  // for dead lock detection ... i think
   InitializeDynamicAnnotations();
 #if !SANITIZER_GO
-  InitializeShadowMemory();
+  InitializeShadowMemory(); // uses MmapFixedNoReserve to get shadow and meta shadow mem and call MapRodata()... todo what is meta shadow?? 
+    // todo may need to change this
   InitializeAllocatorLate();
   InstallDeadlySignalHandlers(TsanOnDeadlySignal);
 #endif
