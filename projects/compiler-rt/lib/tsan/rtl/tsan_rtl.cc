@@ -107,6 +107,10 @@ Context::Context()
   , fired_suppressions_mtx(MutexTypeFired, StatMtxFired)
   , fired_suppressions(8)
   , clock_alloc("clock allocator") {
+    for (int i = 0; i < kShadowCnt; ++i) {
+      tidMap[i] = 0;
+    }
+    numActiveThreads = 0;  // 0 because done before first thread is started
 }
 
 // The objects are allocated in TLS, so one may rely on zero-initialization.
@@ -133,6 +137,27 @@ ThreadState::ThreadState(Context *ctx, int tid, int unique_id, u64 epoch,
   , last_sleep_clock(tid)
 #endif
 {
+  lastLockTime = 0;  //  todo current time
+
+  ctx->numActiveThreads++;
+  // todo error if numActiveThreads > kShadowCnt
+
+  for (int i = 0; i < kShadowCnt; ++i)
+  {
+    if (ctx->tidMap[i] == 0) {  // todo do we need a lock? test and set etc?
+      ctx->tidMap[i] = 1
+      myIndex = i;
+      if (unlockTimeVector[myIndex].Size() != kUnlockTimeVectorSize) {
+        unlockTimeVector[myIndex].Resize(kUnlockTimeVectorSize);  // initialized with zero
+      } else {
+        for (int j = 0; j < kUnlockTimeVectorSize; ++j) {
+          unlockTimeVector[myIndex][j] = 0; // reset it to 0
+        }
+      }
+
+      break;
+    }
+  }
 }
 
 #if !SANITIZER_GO

@@ -62,6 +62,8 @@ struct ClockBlock {
   }
 };
 
+const int kUnlockTimeVectorSize = 8;
+
 const int kTidBits = 13;
 // Reduce kMaxTid by kClockCount because one slot in ClockBlock table is
 // occupied by reference counter, so total number of elements we can store

@@ -47,6 +47,7 @@
 #include "tsan_ignoreset.h"
 #include "tsan_stack_trace.h"
 
+
 #if SANITIZER_WORDSIZE != 64
 # error "ThreadSanitizer is supported only on 64-bit platforms"
 #endif
@@ -424,6 +425,9 @@ struct ThreadState {
   const uptr tls_size;
   ThreadContext *tctx;
 
+  u64 myIndex;  // index in shadow memory
+  u64 lastLockTime;
+
 #if SANITIZER_DEBUG && !SANITIZER_GO
   InternalDeadlockDetector internal_deadlock_detector;
 #endif
@@ -549,6 +553,13 @@ struct Context {
   u64 stat[StatCnt];
   u64 int_alloc_cnt[MBlockTypeCount];
   u64 int_alloc_siz[MBlockTypeCount];
+
+  atomic_uint64_t tidMap[kShadowCnt];  // todo 4 for now. should be equal to max supported active threads
+                                       // val = 0 if free; else 0
+  atomic_uint64_t numActiveThreads;  // contains the number of active threads, to help in the tidMap
+
+  Vector<u64> unlockTimeVector[kShadowCnt];
+
 };
 
 extern Context *ctx;  // The one and the only global runtime context.

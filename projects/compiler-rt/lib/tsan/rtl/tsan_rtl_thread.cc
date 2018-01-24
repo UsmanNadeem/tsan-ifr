@@ -143,6 +143,10 @@ void ThreadContext::OnFinished() {
   if (common_flags()->detect_deadlocks)
     ctx->dd->DestroyLogicalThread(thr->dd_lt);
   thr->clock.ResetCached(&thr->proc()->clock_cache);
+
+  ctx->tidMap[myIndex] = 0
+  ctx->numActiveThreads--;
+
 #if !SANITIZER_GO
   thr->last_sleep_clock.ResetCached(&thr->proc()->clock_cache);
 #endif

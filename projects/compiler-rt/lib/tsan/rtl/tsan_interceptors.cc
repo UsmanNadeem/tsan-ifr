@@ -989,6 +989,7 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
 
 TSAN_INTERCEPTOR(int, pthread_create,
     void *th, void *attr, void *(*callback)(void*), void * param) {
+  // todo release for current thread
   SCOPED_INTERCEPTOR_RAW(pthread_create, th, attr, callback, param);
 
   MaybeSpawnBackgroundThread();
@@ -1045,6 +1046,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
 }
 
 TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
+  // todo acquire
   SCOPED_INTERCEPTOR_RAW(pthread_join, th, ret);
   int tid = ThreadTid(thr, pc, (uptr)th);
   ThreadIgnoreBegin(thr, pc);
@@ -1138,6 +1140,7 @@ INTERCEPTOR(int, pthread_cond_init, void *c, void *a) {
 static int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si,
                      int (*fn)(void *c, void *m, void *abstime), void *c,
                      void *m, void *t) {
+  // todo release followed by acquire
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
   MutexUnlock(thr, pc, (uptr)m);
   CondMutexUnlockCtx arg = {si, thr, pc, m};
@@ -1156,6 +1159,7 @@ static int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si,
 }
 
 INTERCEPTOR(int, pthread_cond_wait, void *c, void *m) {
+  // todo release followed by an acquire
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_wait, cond, m);
   return cond_wait(thr, pc, &si, (int (*)(void *c, void *m, void *abstime))REAL(
@@ -1164,6 +1168,7 @@ INTERCEPTOR(int, pthread_cond_wait, void *c, void *m) {
 }
 
 INTERCEPTOR(int, pthread_cond_timedwait, void *c, void *m, void *abstime) {
+  // todo release followed by an acquire
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_timedwait, cond, m, abstime);
   return cond_wait(thr, pc, &si, REAL(pthread_cond_timedwait), cond, m,
@@ -1173,6 +1178,7 @@ INTERCEPTOR(int, pthread_cond_timedwait, void *c, void *m, void *abstime) {
 #if SANITIZER_MAC
 INTERCEPTOR(int, pthread_cond_timedwait_relative_np, void *c, void *m,
             void *reltime) {
+  // todo release followed by an acquire
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_timedwait_relative_np, cond, m, reltime);
   return cond_wait(thr, pc, &si, REAL(pthread_cond_timedwait_relative_np), cond,
@@ -1401,6 +1407,7 @@ TSAN_INTERCEPTOR(int, pthread_barrier_destroy, void *b) {
 }
 
 TSAN_INTERCEPTOR(int, pthread_barrier_wait, void *b) {
+  // todo release followed by an acquire
   SCOPED_TSAN_INTERCEPTOR(pthread_barrier_wait, b);
   Release(thr, pc, (uptr)b);
   MemoryRead(thr, pc, (uptr)b, kSizeLog1);
