@@ -107,10 +107,11 @@ Context::Context()
   , fired_suppressions_mtx(MutexTypeFired, StatMtxFired)
   , fired_suppressions(8)
   , clock_alloc("clock allocator") {
-    for (int i = 0; i < kShadowCnt; ++i) {
-      tidMap[i] = 0;
+    for (u64 i = 0; i < kShadowCnt; ++i) {
+      // todo memory order
+      atomic_store((atomic_uint64_t*)&(tidMap[i]), (u64)0, memory_order_relaxed);
     }
-    numActiveThreads = 0;  // 0 because done before first thread is started
+    atomic_store((atomic_uint64_t*)(&numActiveThreads), (u64)0, memory_order_relaxed);  // 0 because done before first thread is started
 }
 
 // The objects are allocated in TLS, so one may rely on zero-initialization.
@@ -138,20 +139,24 @@ ThreadState::ThreadState(Context *ctx, int tid, int unique_id, u64 epoch,
 #endif
 {
   lastLockTime = 0;  //  todo current time
+// todo memory order locks...
+  u64 numActiveThreads = atomic_load((atomic_uint64_t*) &(ctx->numActiveThreads), memory_order_relaxed);
+  atomic_store((atomic_uint64_t*) &(ctx->numActiveThreads), (u64)(numActiveThreads+1), memory_order_relaxed);
 
-  ctx->numActiveThreads++;
+  currentTimeVectorSpot = 0;
   // todo error if numActiveThreads > kShadowCnt
 
-  for (int i = 0; i < kShadowCnt; ++i)
+  for (u64 i = 0; i < kShadowCnt; ++i)
   {
-    if (ctx->tidMap[i] == 0) {  // todo do we need a lock? test and set etc?
-      ctx->tidMap[i] = 1
+    if (atomic_load((atomic_uint64_t*) &ctx->tidMap[i], memory_order_relaxed)  == 0) {  // todo do we need a lock? test and set etc?
+      // todo memory order
+      atomic_store((atomic_uint64_t*) &(ctx->tidMap[i]), (u64)1, memory_order_relaxed);
       myIndex = i;
-      if (unlockTimeVector[myIndex].Size() != kUnlockTimeVectorSize) {
-        unlockTimeVector[myIndex].Resize(kUnlockTimeVectorSize);  // initialized with zero
+      if (ctx->unlockTimeVector[myIndex].Size() != kUnlockTimeVectorSize) {
+        ctx->unlockTimeVector[myIndex].Resize(kUnlockTimeVectorSize);  // initialized with zero
       } else {
-        for (int j = 0; j < kUnlockTimeVectorSize; ++j) {
-          unlockTimeVector[myIndex][j] = 0; // reset it to 0
+        for (u64 j = 0; j < kUnlockTimeVectorSize; ++j) {
+          ctx->unlockTimeVector[myIndex][j] = 0; // reset it to 0
         }
       }
 
@@ -1103,3 +1108,12 @@ void build_consistency_nostats() {}
 // Must be included in this file to make sure everything is inlined.
 #include "tsan_interface_inl.h"
 #endif
+
+
+void AcquireIFR(ThreadState *thr) {
+   thr->lastLockTime = 0;  //  todo current time
+}
+void ReleaseIFR(ThreadState *thr) {
+   ctx->unlockTimeVector[thr->myIndex][thr->currentTimeVectorSpot] = 0;  //  todo current time
+   thr->currentTimeVectorSpot = (thr->currentTimeVectorSpot + 1) % kUnlockTimeVectorSize;
+}

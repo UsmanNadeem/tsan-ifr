@@ -158,6 +158,7 @@ void MutexPreLock(ThreadState *thr, uptr pc, uptr addr, u32 flagz) {
 
 void MutexPostLock(ThreadState *thr, uptr pc, uptr addr, u32 flagz, int rec) {
   // todo acquire
+  AcquireIFR(thr);
   DPrintf("#%d: MutexPostLock %zx flag=0x%x rec=%d\n",
       thr->tid, addr, flagz, rec);
   if (flagz & MutexFlagRecursiveLock)
@@ -214,6 +215,7 @@ void MutexPostLock(ThreadState *thr, uptr pc, uptr addr, u32 flagz, int rec) {
 
 int MutexUnlock(ThreadState *thr, uptr pc, uptr addr, u32 flagz) {
   // todo release
+  ReleaseIFR(thr);
   DPrintf("#%d: MutexUnlock %zx flagz=0x%x\n", thr->tid, addr, flagz);
   if (IsAppMem(addr))
     MemoryReadAtomic(thr, pc, addr, kSizeLog1);
@@ -270,6 +272,7 @@ void MutexPreReadLock(ThreadState *thr, uptr pc, uptr addr, u32 flagz) {
 
 void MutexPostReadLock(ThreadState *thr, uptr pc, uptr addr, u32 flagz) {
   // todo acquire? read?
+  AcquireIFR(thr);
   DPrintf("#%d: MutexPostReadLock %zx flagz=0x%x\n", thr->tid, addr, flagz);
   StatInc(thr, StatMutexReadLock);
   if (IsAppMem(addr))
@@ -344,6 +347,7 @@ void MutexReadUnlock(ThreadState *thr, uptr pc, uptr addr) {
 void MutexReadOrWriteUnlock(ThreadState *thr, uptr pc, uptr addr) {
   // todo release 
   // for both reader/writer?
+  ReleaseIFR(thr);
   DPrintf("#%d: MutexReadOrWriteUnlock %zx\n", thr->tid, addr);
   if (IsAppMem(addr))
     MemoryReadAtomic(thr, pc, addr, kSizeLog1);

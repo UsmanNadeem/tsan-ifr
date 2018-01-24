@@ -144,8 +144,10 @@ void ThreadContext::OnFinished() {
     ctx->dd->DestroyLogicalThread(thr->dd_lt);
   thr->clock.ResetCached(&thr->proc()->clock_cache);
 
-  ctx->tidMap[myIndex] = 0
-  ctx->numActiveThreads--;
+  atomic_store((atomic_uint64_t*) &(ctx->tidMap[thr->myIndex]), (u64)0, memory_order_relaxed);
+  // todo memory order/locks
+  u64 numActiveThreads = atomic_load((atomic_uint64_t*) &(ctx->numActiveThreads), memory_order_relaxed);
+  atomic_store((atomic_uint64_t*) &(ctx->numActiveThreads), (u64)(numActiveThreads-1), memory_order_relaxed);
 
 #if !SANITIZER_GO
   thr->last_sleep_clock.ResetCached(&thr->proc()->clock_cache);

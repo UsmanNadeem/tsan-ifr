@@ -94,6 +94,7 @@ Allocator *allocator();
 void TsanCheckFailed(const char *file, int line, const char *cond,
                      u64 v1, u64 v2);
 
+
 const u64 kShadowRodata = (u64)-1;  // .rodata shadow marker
 
 // FastState (from most significant bit):
@@ -427,6 +428,7 @@ struct ThreadState {
 
   u64 myIndex;  // index in shadow memory
   u64 lastLockTime;
+  u64 currentTimeVectorSpot;
 
 #if SANITIZER_DEBUG && !SANITIZER_GO
   InternalDeadlockDetector internal_deadlock_detector;
@@ -460,6 +462,12 @@ struct ThreadState {
                        uptr stk_addr, uptr stk_size,
                        uptr tls_addr, uptr tls_size);
 };
+
+
+void AcquireIFR(ThreadState *thr);
+
+void ReleaseIFR(ThreadState *thr);
+
 
 #if !SANITIZER_GO
 #if SANITIZER_MAC || SANITIZER_ANDROID
